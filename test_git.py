@@ -10,15 +10,22 @@ import numpy as np
 import os
 from datetime import date
 import shutil
+from classes import Cl_Manager
 
-repo_path = r"C:\Users\lukas\Text_Recognition"
-repo = git.Repo(repo_path)
 
-#Pull latest changes
-origin = repo.remotes.origin
-origin.pull()
+
+git_pull_switch = False
+repo_path = r"C:\Users\Lukas\Amazon_Project\Text_Recognition"
+if(git_pull_switch == True):
+    
+    repo = git.Repo(repo_path)
+
+    #Pull latest changes
+    origin = repo.remotes.origin
+    origin.pull()
 
 #Actual programm run
+Manager = Cl_Manager()
 repo_old_books = os.path.join(repo_path, "Processed_Books")
 repo_new_books = os.path.join(repo_path, "New_Books")
 repo_error_books = os.path.join(repo_path, "Error_Books")
@@ -43,21 +50,23 @@ if os.path.isdir(repo_new_books):
             else:
                 print("Book is new")
                 new_book_folder_directory = os.path.join(repo_old_books,current_book)
-                os.makedirs(new_book_folder_directory, exist_ok=True)
-        
+                #os.makedirs(new_book_folder_directory, exist_ok=True)
+                
+                #start processing book
+                Manager.process_new_book(current_book)
     
         
+if(git_pull_switch==True):
+    #Check for uncommited changes
+    if repo.is_dirty(untracked_files=True):
+        #Add all changes
+        repo.git.add(A=True)
 
-#Check for uncommited changes
-if repo.is_dirty(untracked_files=True):
-    #Add all changes
-    repo.git.add(A=True)
+        #Commit changes
+        today = date.today()
+        repo.index.commit(f"{today}: Automation Pipeline")
 
-    #Commit changes
-    today = date.today()
-    repo.index.commit(f"{today}: Automation Pipeline")
-
-    #Push to remote repository
-    origin.push()
-else:
-    print("There are no changes to commit")
+        #Push to remote repository
+        origin.push()
+    else:
+        print("There are no changes to commit")
