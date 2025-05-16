@@ -1,0 +1,5 @@
+From Mistral
+
+SYSTEM "You are a highly knowledgeable AI assistant. Always provide detailed and well-structured responses."
+
+PARAMETER temperature 0.1

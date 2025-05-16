@@ -14,7 +14,9 @@ from classes import Cl_Manager
 
 
 
-git_pull_switch = False
+git_pull_switch = True
+
+
 repo_path = r"C:\Users\Lukas\Amazon_Project\Text_Recognition"
 if(git_pull_switch == True):
     
@@ -50,10 +52,13 @@ if os.path.isdir(repo_new_books):
             else:
                 print("Book is new")
                 new_book_folder_directory = os.path.join(repo_old_books,current_book)
-                #os.makedirs(new_book_folder_directory, exist_ok=True)
                 
                 #start processing book
                 Manager.process_new_book(current_book)
+                print(repo_book)
+                shutil.copytree(repo_book, new_book_folder_directory)
+                shutil.rmtree(repo_book)
+                
     
         
 if(git_pull_switch==True):

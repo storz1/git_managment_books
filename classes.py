@@ -1,6 +1,7 @@
 import numpy as np
 import pytesseract
 from pytesseract import Output
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 import easyocr
 reader = easyocr.Reader(['en'])
@@ -24,7 +25,7 @@ class Cl_Manager:
         
     def process_new_book(self, bookname):
         self.bookname = bookname
-        PDF_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/PDF_Files/' + str(self.bookname)
+        PDF_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/New_Books/' + str(self.bookname)
         JPG_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/JPG_Files/' + str(self.bookname)
         Text_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Text_Files/' + str(self.bookname)
         Text_Numpy_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Text_Numpy_Files/' + str(self.bookname)
@@ -43,12 +44,13 @@ class Cl_Manager:
         #first step: Convert pdf to jpg
         new_book_folder = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/New_Books/' + str(self.bookname)
         pdf_files = []
-        for root, dirs, files in os.walk(PDF_folder):
+        for root, dirs, files in os.walk(new_book_folder):
             for file in files:
                 if file.endswith('.pdf'):
                     pdf_files.append(os.path.join(root, file))
         
         if(len(pdf_files) == 1):
+            #1.Step: pdf --> jpg
             pdfs = pdf_files[0]
             print(pdfs)
             poppler_path = r'C:\poppler\poppler-24.08.0\Library\bin'
@@ -58,6 +60,75 @@ class Cl_Manager:
                 image_name = JPG_folder + "/" + "Page_" + str(i) + ".jpg"
                 page.save(image_name, "JPEG")
                 i = i+1
+            
+            #2.Step: extract data with 
+            for i in range(len(pages)):
+                image_path = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/JPG_Files/' + str(self.bookname) +'/' + f"Page_{i+1}.jpg"
+                book_page_dir_text = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Text_Files/' + str(self.bookname) + '/' +f"Page_{i+1}"
+                
+                Instance_Image_Analysis = ImageAnalysis(image_path)
+                #process file with text recognition
+                Instance_Image_Analysis.process()
+                #apply text correction software
+                Instance_Image_Analysis.run_correction()
+            
+            
+                os.makedirs(book_page_dir_text, exist_ok=True)
+                
+                book_page_dir_mask = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Mask_Files/' + str(self.bookname) + '/' +f"Page_{i+1}"
+                book_page_dir_positions = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Position_Files/' + str(self.bookname) + '/' +f"Page_{i+1}"
+                book_page_dir_text_numpy = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Text_Numpy_Files/' + str(self.bookname) + '/' +f"Page_{i+1}"
+                book_page_dir_positions_words = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Position_Words_Files/' + str(self.bookname) + '/' +f"Page_{i+1}"
+                os.makedirs(book_page_dir_mask, exist_ok=True)
+                os.makedirs(book_page_dir_positions, exist_ok=True)
+                os.makedirs(book_page_dir_text_numpy, exist_ok = True)
+                os.makedirs(book_page_dir_positions_words, exist_ok = True)
+                
+                with open(os.path.join(book_page_dir_text, 'All_Paragraphs.txt'), 'w', encoding='utf-8', errors='ignore') as big_file:
+                    # Iterate over the list and save each sequence to a separate .txt file
+                    for j, sequence in enumerate(Instance_Image_Analysis.sorted_text):
+                        filename = os.path.join(book_page_dir_text, f'Paragraph_{j+1}.txt')
+                        with open(filename, 'w', encoding='utf-8', errors='ignore') as file:
+                            file.write(' '.join(sequence))
+                            
+                        big_file.write(' '.join(sequence))
+                        # Optionally, add a separator between paragraphs if needed
+                        big_file.write('\n\n')  # Adds two newlines as a separator between paragraphs
+                        
+                        filename_mask = os.path.join(book_page_dir_mask, f'Paragraph_{j+1}')
+                        filename_pos  = os.path.join(book_page_dir_positions, f'Paragraph_{j+1}')
+                        filename_text_numpy = os.path.join(book_page_dir_text_numpy, f'Paragraph_{j+1}')
+                        
+                        
+                    
+                        np.save(filename_mask, Instance_Image_Analysis.sorted_mask[j])
+                        np.save(filename_pos, Instance_Image_Analysis.sorted_paragraph_positions[j])
+                        np.save(filename_text_numpy, sequence)
+                        
+                                                    
+                        book_page_dir_positions_words_paragraph = 'C:/Users/' + self.user + '/Amazon_Project/Text_Recognition/Position_Words_Files/' + str(self.bookname) + '/' +f"Page_{i+1}" +'/'+f'Paragraph_{j+1}'
+                        os.makedirs(book_page_dir_positions_words_paragraph, exist_ok=True)
+                        #sort resulting positions in different arrays to make them homogeneous
+                        
+                        filename_positions_words_x = os.path.join(book_page_dir_positions_words_paragraph, 'x')
+                        filename_positions_words_y = os.path.join(book_page_dir_positions_words_paragraph, 'y')
+                        filename_positions_words_dx = os.path.join(book_page_dir_positions_words_paragraph, 'dx')
+                        filename_positions_words_dy = os.path.join(book_page_dir_positions_words_paragraph, 'dy')
+                            
+                        data_x = []
+                        data_y = []
+                        data_dx = []
+                        data_dy = []
+                        for k in range(len(Instance_Image_Analysis.sorted_words_positions[j])):
+                            data_x.append(Instance_Image_Analysis.sorted_words_positions[j][k][0])
+                            data_y.append(Instance_Image_Analysis.sorted_words_positions[j][k][1])
+                            data_dx.append(Instance_Image_Analysis.sorted_words_positions[j][k][2])
+                            data_dy.append(Instance_Image_Analysis.sorted_words_positions[j][k][3])
+                            
+                        np.save(filename_positions_words_x, np.array(data_x))
+                        np.save(filename_positions_words_y, np.array(data_y))
+                        np.save(filename_positions_words_dx, np.array(data_dx))
+                        np.save(filename_positions_words_dy, np.array(data_dy))
         
 class ImageAnalysis:
     def __init__(self, image_path, custom_config=None, max_edit_distance_dictionary = 1, prefix_length=7):
@@ -695,7 +766,7 @@ class ImageAnalysis:
                 interpunction = term[-1]
                 term = term[:-1]
 
-            edit_dist = min(max_edit_dist, ceil(wrong_percentage * len(term)))
+            edit_dist = min(max_edit_dist, np.ceil(wrong_percentage * len(term)))
 
             lookup = self.sym_spell.lookup(
                 term, Verbosity.CLOSEST, max_edit_distance=edit_dist,
